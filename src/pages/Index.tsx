@@ -1,91 +1,74 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
+interface Task {
+  id: number;
+  text: string;
+  completed: boolean;
+  category: string;
+  dueDate: string;
+  priority: string;
+  createdAt: string;
+}
 
 const Index = () => {
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState('all');
+  const [taskInput, setTaskInput] = useState('');
+  const [categorySelect, setCategorySelect] = useState('personal');
+  const [dueDateInput, setDueDateInput] = useState('');
+  const [prioritySelect, setPrioritySelect] = useState('medium');
+  const [searchInput, setSearchInput] = useState('');
 
   useEffect(() => {
     // Load tasks from localStorage when component mounts
     const savedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
     setTasks(savedTasks);
+  }, []);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     
-    // Set up event listeners for the form
-    const taskForm = document.getElementById('task-form');
-    const taskInput = document.getElementById('task-input');
-    const categorySelect = document.getElementById('category-select');
-    const dueDateInput = document.getElementById('due-date');
-    const prioritySelect = document.getElementById('priority-select');
-    const filterOptions = document.getElementById('filter-options');
-    const clearBtn = document.getElementById('clear-completed');
+    if (taskInput.trim() === '') {
+      showAlert('Please enter a task', 'error');
+      return;
+    }
     
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      
-      if (taskInput.value.trim() === '') {
-        showAlert('Please enter a task', 'error');
-        return;
-      }
-      
-      const newTask = {
-        id: Date.now(),
-        text: taskInput.value,
-        completed: false,
-        category: categorySelect.value,
-        dueDate: dueDateInput.value,
-        priority: prioritySelect.value,
-        createdAt: new Date().toISOString()
-      };
-      
-      const updatedTasks = [...tasks, newTask];
-      setTasks(updatedTasks);
-      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-      
-      taskInput.value = '';
-      dueDateInput.value = '';
-      categorySelect.value = 'personal';
-      prioritySelect.value = 'medium';
-      
-      showAlert('Task added successfully', 'success');
+    const newTask = {
+      id: Date.now(),
+      text: taskInput,
+      completed: false,
+      category: categorySelect,
+      dueDate: dueDateInput,
+      priority: prioritySelect,
+      createdAt: new Date().toISOString()
     };
     
-    const handleFilterClick = (e) => {
-      if (e.target.tagName !== 'BUTTON') return;
-      
-      document.querySelectorAll('#filter-options button').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      
-      e.target.classList.add('active');
-      
-      setFilter(e.target.dataset.filter);
-    };
+    const updatedTasks = [...tasks, newTask];
+    setTasks(updatedTasks);
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
     
-    const handleClearCompleted = () => {
-      const updatedTasks = tasks.filter(task => !task.completed);
-      setTasks(updatedTasks);
-      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-      showAlert('Completed tasks cleared', 'info');
-    };
+    // Reset input fields
+    setTaskInput('');
+    setDueDateInput('');
+    setCategorySelect('personal');
+    setPrioritySelect('medium');
     
-    if (taskForm) taskForm.addEventListener('submit', handleSubmit);
-    if (filterOptions) filterOptions.addEventListener('click', handleFilterClick);
-    if (clearBtn) clearBtn.addEventListener('click', handleClearCompleted);
-    
-    // Cleanup function to remove event listeners
-    return () => {
-      if (taskForm) taskForm.removeEventListener('submit', handleSubmit);
-      if (filterOptions) filterOptions.removeEventListener('click', handleFilterClick);
-      if (clearBtn) clearBtn.removeEventListener('click', handleClearCompleted);
-    };
-  }, [tasks]); // Re-run effect when tasks change
+    showAlert('Task added successfully', 'success');
+  };
   
-  useEffect(() => {
-    // Update task display when filter or tasks change
-    renderTasks();
-  }, [filter, tasks]);
+  const filterTasks = (filterType: string) => {
+    setFilter(filterType);
+  };
   
-  const toggleComplete = (id) => {
+  const clearCompleted = () => {
+    const updatedTasks = tasks.filter(task => !task.completed);
+    setTasks(updatedTasks);
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    showAlert('Completed tasks cleared', 'info');
+  };
+  
+  const toggleComplete = (id: number) => {
     const updatedTasks = tasks.map(task => 
       task.id === id ? {...task, completed: !task.completed} : task
     );
@@ -93,14 +76,16 @@ const Index = () => {
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
   };
   
-  const deleteTask = (id) => {
+  const deleteTask = (id: number) => {
     const updatedTasks = tasks.filter(task => task.id !== id);
     setTasks(updatedTasks);
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
     showAlert('Task deleted', 'info');
   };
   
-  const editTask = (id, newText) => {
+  const editTask = (id: number, newText: string) => {
+    if (newText.trim() === '') return;
+    
     const updatedTasks = tasks.map(task => 
       task.id === id ? {...task, text: newText} : task
     );
@@ -109,7 +94,7 @@ const Index = () => {
     showAlert('Task updated', 'success');
   };
   
-  const showAlert = (message, type) => {
+  const showAlert = (message: string, type: string) => {
     const alert = document.createElement('div');
     alert.className = `alert ${type}`;
     alert.textContent = message;
@@ -124,133 +109,59 @@ const Index = () => {
     }
   };
   
-  const renderTasks = () => {
-    const taskList = document.getElementById('task-list');
-    if (!taskList) return;
-    
-    taskList.innerHTML = '';
-    
+  // Filter and sort tasks
+  const getFilteredTasks = () => {
     // Filter tasks based on current filter
     let filteredTasks = [...tasks];
-    if (filter === 'active') {
-      filteredTasks = tasks.filter(task => !task.completed);
-    } else if (filter === 'completed') {
-      filteredTasks = tasks.filter(task => task.completed);
+    
+    // Apply search filter if searchInput has text
+    if (searchInput.trim() !== '') {
+      filteredTasks = filteredTasks.filter(task => 
+        task.text.toLowerCase().includes(searchInput.toLowerCase())
+      );
     }
     
-    if (filteredTasks.length === 0) {
-      taskList.innerHTML = '<li class="empty-state">No tasks yet. Add one above!</li>';
-      return;
+    // Apply completed/active filters
+    if (filter === 'active') {
+      filteredTasks = filteredTasks.filter(task => !task.completed);
+    } else if (filter === 'completed') {
+      filteredTasks = filteredTasks.filter(task => task.completed);
     }
     
     // Sort tasks by priority and date
-    const sortedTasks = [...filteredTasks].sort((a, b) => {
-      const priorityValues = {high: 3, medium: 2, low: 1};
+    return [...filteredTasks].sort((a, b) => {
+      const priorityValues: {[key: string]: number} = {high: 3, medium: 2, low: 1};
       return priorityValues[b.priority] - priorityValues[a.priority] || 
-            new Date(a.dueDate) - new Date(b.dueDate);
-    });
-    
-    sortedTasks.forEach(task => {
-      const taskElement = document.createElement('li');
-      taskElement.classList.add('task-item');
-      taskElement.dataset.id = task.id;
-      
-      // Add priority class
-      taskElement.classList.add(`priority-${task.priority}`);
-      
-      // Add category class
-      taskElement.classList.add(`category-${task.category}`);
-      
-      // Check if task is due today or overdue
-      if (task.dueDate) {
-        const dueDate = new Date(task.dueDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        if (dueDate < today) {
-          taskElement.classList.add('overdue');
-        } else if (dueDate.getTime() === today.getTime()) {
-          taskElement.classList.add('due-today');
-        }
-      }
-      
-      const categoryBadge = `<span class="category-badge ${task.category}">${task.category}</span>`;
-      const priorityBadge = `<span class="priority-badge ${task.priority}">${task.priority}</span>`;
-      const dueDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date';
-      
-      taskElement.innerHTML = `
-        <div class="task-content ${task.completed ? 'completed' : ''}">
-          <input type="checkbox" ${task.completed ? 'checked' : ''}>
-          <span class="task-text">${task.text}</span>
-          <div class="task-meta">
-            ${categoryBadge}
-            ${priorityBadge}
-            <span class="due-date">${dueDate}</span>
-          </div>
-        </div>
-        <div class="task-actions">
-          <button class="edit-btn">Edit</button>
-          <button class="delete-btn">Delete</button>
-        </div>
-      `;
-      
-      // Add event listener for checkbox
-      const checkbox = taskElement.querySelector('input[type="checkbox"]');
-      checkbox.addEventListener('change', () => {
-        toggleComplete(task.id);
-      });
-      
-      // Add event listener for delete button
-      const deleteBtn = taskElement.querySelector('.delete-btn');
-      deleteBtn.addEventListener('click', () => {
-        deleteTask(task.id);
-      });
-      
-      // Add event listener for edit button
-      const editBtn = taskElement.querySelector('.edit-btn');
-      editBtn.addEventListener('click', () => {
-        const taskText = taskElement.querySelector('.task-text');
-        const currentText = taskText.textContent;
-        const newText = prompt('Edit task:', currentText);
-        
-        if (newText !== null && newText.trim() !== '') {
-          editTask(task.id, newText);
-        }
-      });
-      
-      taskList.appendChild(taskElement);
-    });
-    
-    // Enable drag and drop
-    const taskItems = document.querySelectorAll('.task-item');
-    taskItems.forEach(item => {
-      item.setAttribute('draggable', true);
-      item.addEventListener('dragstart', handleDragStart);
-      item.addEventListener('dragend', handleDragEnd);
+        new Date(a.dueDate || '9999-12-31').getTime() - new Date(b.dueDate || '9999-12-31').getTime();
     });
   };
   
-  // Drag and drop functionality
-  const handleDragStart = function(e) {
-    this.classList.add('dragging');
+  // Handle drag and drop
+  const handleDragStart = (e: React.DragEvent<HTMLLIElement>, taskId: number) => {
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', taskId.toString());
   };
 
-  const handleDragEnd = function() {
-    this.classList.remove('dragging');
+  const handleDragEnd = (e: React.DragEvent<HTMLLIElement>) => {
+    e.currentTarget.classList.remove('dragging');
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: React.DragEvent<HTMLUListElement>) => {
     e.preventDefault();
-    const taskList = document.getElementById('task-list');
-    const draggingItem = document.querySelector('.dragging');
+    const taskList = e.currentTarget;
+    const draggingItem = document.querySelector('.dragging') as HTMLElement;
     if (!draggingItem || !taskList) return;
     
-    const siblings = [...taskList.querySelectorAll('.task-item:not(.dragging)')];
+    const siblings = Array.from(taskList.querySelectorAll('.task-item:not(.dragging)')) as HTMLElement[];
     const nextSibling = siblings.find(sibling => {
       return e.clientY < sibling.getBoundingClientRect().top + sibling.getBoundingClientRect().height / 2;
     });
     
-    taskList.insertBefore(draggingItem, nextSibling);
+    if (nextSibling) {
+      taskList.insertBefore(draggingItem, nextSibling);
+    } else {
+      taskList.appendChild(draggingItem);
+    }
   };
 
   // Theme toggle functionality
@@ -259,6 +170,8 @@ const Index = () => {
     const currentTheme = document.body.classList.contains('dark') ? 'dark' : 'light';
     localStorage.setItem('theme', currentTheme);
   };
+
+  const filteredTasks = getFilteredTasks();
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -287,7 +200,8 @@ const Index = () => {
           <div className="relative">
             <input 
               type="text" 
-              id="search-input" 
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search tasks..." 
               className="w-full p-3 pl-10 bg-gray-100/70 dark:bg-gray-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
             />
@@ -298,11 +212,12 @@ const Index = () => {
           </div>
         </div>
         
-        <form id="task-form" className="mb-6">
+        <form onSubmit={handleSubmit} className="mb-6">
           <div className="mb-4">
             <input 
               type="text" 
-              id="task-input" 
+              value={taskInput}
+              onChange={(e) => setTaskInput(e.target.value)}
               placeholder="What do you need to do?" 
               className="w-full p-3 bg-gray-100/70 dark:bg-gray-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
               required
@@ -312,9 +227,9 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <select 
-                id="category-select" 
+                value={categorySelect}
+                onChange={(e) => setCategorySelect(e.target.value)}
                 className="w-full p-3 bg-gray-100/70 dark:bg-gray-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                defaultValue="personal"
               >
                 <option value="personal">Personal</option>
                 <option value="work">Work</option>
@@ -327,16 +242,17 @@ const Index = () => {
             <div>
               <input 
                 type="date" 
-                id="due-date" 
+                value={dueDateInput}
+                onChange={(e) => setDueDateInput(e.target.value)}
                 className="w-full p-3 bg-gray-100/70 dark:bg-gray-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
               />
             </div>
             
             <div>
               <select 
-                id="priority-select" 
+                value={prioritySelect}
+                onChange={(e) => setPrioritySelect(e.target.value)}
                 className="w-full p-3 bg-gray-100/70 dark:bg-gray-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                defaultValue="medium"
               >
                 <option value="low">Low Priority</option>
                 <option value="medium">Medium Priority</option>
@@ -354,19 +270,99 @@ const Index = () => {
         </form>
         
         <div className="filters mb-4">
-          <div id="filter-options" className="flex space-x-2">
-            <button data-filter="all" className="active px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg">All</button>
-            <button data-filter="active" className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg">Active</button>
-            <button data-filter="completed" className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg">Completed</button>
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => filterTasks('all')} 
+              className={`px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg ${filter === 'all' ? 'bg-gradient-to-r from-purple-500/70 to-pink-500/70 text-white' : ''}`}
+            >
+              All
+            </button>
+            <button 
+              onClick={() => filterTasks('active')} 
+              className={`px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg ${filter === 'active' ? 'bg-gradient-to-r from-purple-500/70 to-pink-500/70 text-white' : ''}`}
+            >
+              Active
+            </button>
+            <button 
+              onClick={() => filterTasks('completed')} 
+              className={`px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg ${filter === 'completed' ? 'bg-gradient-to-r from-purple-500/70 to-pink-500/70 text-white' : ''}`}
+            >
+              Completed
+            </button>
           </div>
         </div>
         
-        <ul id="task-list" className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar" onDragOver={handleDragOver}></ul>
+        <ul className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar" onDragOver={handleDragOver}>
+          {filteredTasks.length === 0 ? (
+            <li className="empty-state">No tasks yet. Add one above!</li>
+          ) : (
+            filteredTasks.map(task => {
+              // Calculate if task is due today or overdue
+              let isOverdue = false;
+              let isDueToday = false;
+              
+              if (task.dueDate) {
+                const dueDate = new Date(task.dueDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (dueDate < today) {
+                  isOverdue = true;
+                } else if (dueDate.getTime() === today.getTime()) {
+                  isDueToday = true;
+                }
+              }
+              
+              return (
+                <li 
+                  key={task.id}
+                  className={`task-item ${isOverdue ? 'overdue' : ''} ${isDueToday ? 'due-today' : ''} priority-${task.priority} category-${task.category}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, task.id)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className={`task-content ${task.completed ? 'completed' : ''}`}>
+                    <input 
+                      type="checkbox" 
+                      checked={task.completed}
+                      onChange={() => toggleComplete(task.id)}
+                    />
+                    <span className="task-text">{task.text}</span>
+                    <div className="task-meta">
+                      <span className={`category-badge ${task.category}`}>{task.category}</span>
+                      <span className={`priority-badge ${task.priority}`}>{task.priority}</span>
+                      <span className="due-date">{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}</span>
+                    </div>
+                  </div>
+                  <div className="task-actions">
+                    <button 
+                      className="edit-btn"
+                      onClick={() => {
+                        const newText = prompt('Edit task:', task.text);
+                        if (newText !== null && newText.trim() !== '') {
+                          editTask(task.id, newText);
+                        }
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      className="delete-btn"
+                      onClick={() => deleteTask(task.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              );
+            })
+          )}
+        </ul>
         
         <div className="mt-4 flex justify-between items-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">Drag and drop to reorder tasks</p>
           <button 
-            id="clear-completed" 
+            onClick={clearCompleted}
             className="px-4 py-2 bg-red-500/80 text-white rounded-lg hover:bg-red-600 transition-all duration-300"
           >
             Clear Completed
@@ -403,7 +399,7 @@ const Index = () => {
           border-radius: 8px;
           border-left: 4px solid transparent;
           cursor: grab;
-          transition: all 0.2s ease;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         
         .dark .task-item {
@@ -569,15 +565,6 @@ const Index = () => {
         
         .due-today {
           background-color: rgba(245, 158, 11, 0.05);
-        }
-        
-        #filter-options button {
-          transition: all 0.3s ease;
-        }
-        
-        #filter-options button.active {
-          background: linear-gradient(to right, rgba(139, 92, 246, 0.7), rgba(236, 72, 153, 0.7));
-          color: white;
         }
         `}
       </style>
