@@ -409,7 +409,8 @@ const Index = () => {
         </div>
       </div>
       
-      <style jsx global>{`
+      <style>
+        {`
         .todo-app {
           transition: background-color 0.3s ease, color 0.3s ease;
         }
@@ -613,7 +614,8 @@ const Index = () => {
           background: linear-gradient(to right, rgba(139, 92, 246, 0.7), rgba(236, 72, 153, 0.7));
           color: white;
         }
-      `}</style>
+        `}
+      </style>
     </div>
   );
 };
